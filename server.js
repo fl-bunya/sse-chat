@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
@@ -6,6 +7,46 @@ const url = require('url');
 const PORT = 3002;
 const clients = new Set();
 const messages = [];
+
+// Keep-alive configuration
+const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+const KEEP_ALIVE_INTERVAL = 14 * 60 * 1000; // 14 minutes in milliseconds
+
+function keepAlive() {
+    const urlObj = new URL(KEEP_ALIVE_URL);
+    const isHttps = urlObj.protocol === 'https:';
+    const requestModule = isHttps ? https : http;
+    
+    const options = {
+        hostname: urlObj.hostname,
+        port: urlObj.port || (isHttps ? 443 : 80),
+        path: '/',
+        method: 'GET',
+        timeout: 30000
+    };
+
+    const req = requestModule.request(options, (res) => {
+        console.log(`Keep-alive ping successful: ${res.statusCode}`);
+        res.on('data', () => {}); // Consume response data
+    });
+
+    req.on('error', (error) => {
+        console.error('Keep-alive ping failed:', error.message);
+    });
+
+    req.on('timeout', () => {
+        console.error('Keep-alive ping timed out');
+        req.destroy();
+    });
+
+    req.end();
+}
+
+// Start keep-alive only in production (when RENDER_EXTERNAL_URL is set)
+if (process.env.RENDER_EXTERNAL_URL) {
+    setInterval(keepAlive, KEEP_ALIVE_INTERVAL);
+    console.log(`Keep-alive enabled: pinging ${KEEP_ALIVE_URL} every ${KEEP_ALIVE_INTERVAL / 1000 / 60} minutes`);
+}
 
 function sendToAllClients(data) {
     const eventData = `data: ${JSON.stringify(data)}\n\n`;
