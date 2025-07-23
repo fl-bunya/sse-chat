@@ -136,7 +136,7 @@ class ChatClient {
     displaySystemMessage(data) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message system-message';
-        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        const timestamp = new Date(data.timestamp).toLocaleString();
         messageDiv.innerHTML = `<em>${data.message}</em> <small>(${timestamp})</small>`;
         this.chatContainer.appendChild(messageDiv);
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
@@ -145,7 +145,7 @@ class ChatClient {
     displayRegularMessage(data) {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message';
-        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        const timestamp = new Date(data.timestamp).toLocaleString();
         const isOwnMessage = data.username === this.username;
         messageDiv.className += isOwnMessage ? ' user-message' : ' other-message';
         messageDiv.innerHTML = `
@@ -162,7 +162,7 @@ class ChatClient {
         messageDiv.className = 'message';
         messageDiv.id = `message-${data.messageId}`;
         
-        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        const timestamp = new Date(data.timestamp).toLocaleString();
         const isOwnMessage = data.username === this.username;
         messageDiv.className += isOwnMessage ? ' user-message' : ' other-message';
         
