@@ -19,6 +19,41 @@ function sendToAllClients(data) {
     });
 }
 
+function sendCharacterByCharacter(chatMessage) {
+    const messageId = Date.now().toString();
+    const username = chatMessage.username;
+    const timestamp = chatMessage.timestamp;
+    const message = chatMessage.message;
+    
+    const headerMessage = {
+        type: 'message_start',
+        messageId: messageId,
+        username: username,
+        timestamp: timestamp
+    };
+    
+    sendToAllClients(headerMessage);
+    
+    for (let i = 0; i < message.length; i++) {
+        setTimeout(() => {
+            const charMessage = {
+                type: 'message_char',
+                messageId: messageId,
+                char: message[i]
+            };
+            sendToAllClients(charMessage);
+        }, i * 10);
+    }
+
+    setTimeout(() => {
+        const endMessage = {
+            type: 'message_end',
+            messageId: messageId
+        };
+        sendToAllClients(endMessage);
+    }, message.length * 10);
+}
+
 function serveFile(res, filePath) {
     const ext = path.extname(filePath);
     const contentType = {
@@ -105,7 +140,7 @@ const server = http.createServer((req, res) => {
                     messages.shift();
                 }
 
-                sendToAllClients(chatMessage);
+                sendCharacterByCharacter(chatMessage);
 
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));

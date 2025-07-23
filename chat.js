@@ -6,6 +6,7 @@ class ChatClient {
         this.messageForm = document.getElementById('message-form');
         this.messageInput = document.getElementById('message-input');
         this.connectionStatus = document.getElementById('connection-status');
+        this.streamingMessages = new Map();
         
         this.init();
     }
@@ -110,32 +111,85 @@ class ChatClient {
     }
 
     displayMessage(data) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message';
-
-        const timestamp = new Date(data.timestamp).toLocaleTimeString();
-
         switch (data.type) {
             case 'system':
-                messageDiv.className += ' system-message';
-                messageDiv.innerHTML = `<em>${data.message}</em> <small>(${timestamp})</small>`;
+                this.displaySystemMessage(data);
                 break;
             case 'message':
-                const isOwnMessage = data.username === this.username;
-                messageDiv.className += isOwnMessage ? ' user-message' : ' other-message';
-                messageDiv.innerHTML = `
-                    <strong>${this.escapeHtml(data.username)}:</strong> 
-                    ${this.escapeHtml(data.message)} 
-                    <small>(${timestamp})</small>
-                `;
+                this.displayRegularMessage(data);
+                break;
+            case 'message_start':
+                this.startStreamingMessage(data);
+                break;
+            case 'message_char':
+                this.appendCharacterToMessage(data);
+                break;
+            case 'message_end':
+                this.endStreamingMessage(data);
                 break;
             default:
                 console.warn('Unknown message type:', data.type);
                 return;
         }
+    }
 
+    displaySystemMessage(data) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message system-message';
+        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        messageDiv.innerHTML = `<em>${data.message}</em> <small>(${timestamp})</small>`;
         this.chatContainer.appendChild(messageDiv);
         this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+    }
+
+    displayRegularMessage(data) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        const isOwnMessage = data.username === this.username;
+        messageDiv.className += isOwnMessage ? ' user-message' : ' other-message';
+        messageDiv.innerHTML = `
+            <strong>${this.escapeHtml(data.username)}:</strong> 
+            ${this.escapeHtml(data.message)} 
+            <small>(${timestamp})</small>
+        `;
+        this.chatContainer.appendChild(messageDiv);
+        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+    }
+
+    startStreamingMessage(data) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message';
+        messageDiv.id = `message-${data.messageId}`;
+        
+        const timestamp = new Date(data.timestamp).toLocaleTimeString();
+        const isOwnMessage = data.username === this.username;
+        messageDiv.className += isOwnMessage ? ' user-message' : ' other-message';
+        
+        messageDiv.innerHTML = `
+            <strong>${this.escapeHtml(data.username)}:</strong> 
+            <span class="message-text"></span>
+            <small>(${timestamp})</small>
+        `;
+        
+        this.chatContainer.appendChild(messageDiv);
+        this.streamingMessages.set(data.messageId, messageDiv);
+        this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+    }
+
+    appendCharacterToMessage(data) {
+        const messageDiv = this.streamingMessages.get(data.messageId);
+        if (messageDiv) {
+            const textSpan = messageDiv.querySelector('.message-text');
+            if (textSpan) {
+                textSpan.textContent += data.char;
+                this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+            }
+        }
+    }
+
+    endStreamingMessage(data) {
+        this.streamingMessages.delete(data.messageId);
     }
 
     escapeHtml(text) {
