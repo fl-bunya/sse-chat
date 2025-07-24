@@ -83,7 +83,7 @@ function sendCharacterByCharacter(chatMessage) {
                 char: message[i]
             };
             sendToAllClients(charMessage);
-        }, i * 10);
+        }, i * 20);
     }
 
     setTimeout(() => {
@@ -92,7 +92,7 @@ function sendCharacterByCharacter(chatMessage) {
             messageId: messageId
         };
         sendToAllClients(endMessage);
-    }, message.length * 10);
+    }, message.length * 20);
 }
 
 function serveFile(res, filePath) {

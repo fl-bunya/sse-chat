@@ -182,13 +182,40 @@ class ChatClient {
         if (messageDiv) {
             const textSpan = messageDiv.querySelector('.message-text');
             if (textSpan) {
-                textSpan.textContent += data.char;
+                // 既存のカーソルを削除
+                const existingCursor = textSpan.querySelector('.typing-cursor');
+                if (existingCursor) {
+                    existingCursor.remove();
+                }
+                
+                // 新しい文字を発光エフェクト付きで追加
+                const charSpan = document.createElement('span');
+                charSpan.className = 'streaming-char';
+                charSpan.textContent = data.char;
+                textSpan.appendChild(charSpan);
+                
+                // 新しいカーソルを追加
+                const cursor = document.createElement('span');
+                cursor.className = 'typing-cursor';
+                textSpan.appendChild(cursor);
+                
                 this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
             }
         }
     }
 
     endStreamingMessage(data) {
+        const messageDiv = this.streamingMessages.get(data.messageId);
+        if (messageDiv) {
+            const textSpan = messageDiv.querySelector('.message-text');
+            if (textSpan) {
+                // タイピングカーソルを削除
+                const cursor = textSpan.querySelector('.typing-cursor');
+                if (cursor) {
+                    cursor.remove();
+                }
+            }
+        }
         this.streamingMessages.delete(data.messageId);
     }
 
