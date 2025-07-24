@@ -3,192 +3,378 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSE Chat</title>
+    <title>SSE Chat - Terminal</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+        
+        * {
+            box-sizing: border-box;
         }
+        
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #000;
+            color: #ff8c00;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* CRTモニタのスキャンライン効果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                transparent 50%,
+                rgba(0, 0, 0, 0.1) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        /* CRTモニタの湾曲効果 */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 0%,
+                rgba(0, 0, 0, 0.1) 70%,
+                rgba(0, 0, 0, 0.3) 100%
+            );
+            pointer-events: none;
+            z-index: 999;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #ff8c00;
+            text-shadow: 
+                0 0 10px #ff8c00,
+                0 0 20px #ff8c00,
+                0 0 30px #ff8c00;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            letter-spacing: 2px;
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes titleGlow {
+            from {
+                text-shadow: 
+                    0 0 10px #ff8c00,
+                    0 0 20px #ff8c00,
+                    0 0 30px #ff8c00;
+            }
+            to {
+                text-shadow: 
+                    0 0 15px #ff8c00,
+                    0 0 25px #ff8c00,
+                    0 0 35px #ff8c00,
+                    0 0 45px #ff8c00;
+            }
+        }
+        
+        #connection-status {
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            border: 2px solid #ff8c00;
+            background-color: rgba(0, 0, 0, 0.8);
+            box-shadow: 
+                inset 0 0 10px rgba(255, 140, 0, 0.3),
+                0 0 10px rgba(255, 140, 0, 0.5);
+        }
+        
+        .connected {
+            color: #00ff00;
+            border-color: #00ff00;
+            box-shadow: 
+                inset 0 0 10px rgba(0, 255, 0, 0.3),
+                0 0 10px rgba(0, 255, 0, 0.5);
+        }
+        
+        .disconnected {
+            color: #ff0000;
+            border-color: #ff0000;
+            box-shadow: 
+                inset 0 0 10px rgba(255, 0, 0, 0.3),
+                0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        
         #chat-container {
-            border: 1px solid #ccc;
+            border: 2px solid #ff8c00;
             height: 400px;
             overflow-y: auto;
-            padding: 10px;
-            margin-bottom: 10px;
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: rgba(0, 0, 0, 0.9);
+            border-radius: 0;
+            box-shadow: 
+                inset 0 0 20px rgba(255, 140, 0, 0.2),
+                0 0 20px rgba(255, 140, 0, 0.3);
+            font-size: 1.1em;
+            line-height: 1.4;
         }
+        
         .message {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             padding: 8px 12px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border-radius: 0;
+            border-left: 3px solid #ff8c00;
+            background-color: rgba(0, 0, 0, 0.7);
+            box-shadow: 0 0 5px rgba(255, 140, 0, 0.2);
         }
+        
         .user-message {
-            background-color: #e3f2fd;
+            background-color: rgba(255, 140, 0, 0.1);
             text-align: right;
-            border-left: 4px solid #2196f3;
+            border-left-color: #00ff00;
         }
+        
         .other-message {
-            background-color: #f3e5f5;
+            background-color: rgba(255, 140, 0, 0.05);
             text-align: left;
-            border-left: 4px solid #9c27b0;
+            border-left-color: #ff8c00;
         }
+        
         .system-message {
-            background-color: #fff3e0;
+            background-color: rgba(255, 140, 0, 0.15);
             text-align: center;
             font-style: italic;
-            border-left: 4px solid #ff9800;
+            border-left-color: #ffff00;
         }
         
         /* ストリーミング文字用のスタイル */
         .streaming-char {
             display: inline-block;
-            animation: charGlow 0.8s ease-out;
+            animation: terminalCharGlow 1.2s ease-out;
             position: relative;
+            color: #ff8c00;
         }
         
-        /* 文字の発光エフェクトアニメーション */
-        @keyframes charGlow {
+        /* ターミナル風文字の発光エフェクト */
+        @keyframes terminalCharGlow {
             0% {
-                color: #fff;
+                color: #ffffff;
                 text-shadow: 
-                    0 0 5px #fff,
-                    0 0 10px #fff,
-                    0 0 15px #0073e6,
-                    0 0 20px #0073e6,
-                    0 0 25px #0073e6,
-                    0 0 30px #0073e6;
-                transform: scale(1.1);
+                    0 0 5px #ffffff,
+                    0 0 10px #ffffff,
+                    0 0 15px #ff8c00,
+                    0 0 20px #ff8c00,
+                    0 0 25px #ff8c00,
+                    0 0 30px #ff8c00;
+                transform: scale(1.2);
+                filter: brightness(1.5);
             }
-            50% {
-                color: #fff;
+            30% {
+                color: #ffd700;
                 text-shadow: 
-                    0 0 3px #fff,
-                    0 0 6px #fff,
-                    0 0 9px #0073e6,
-                    0 0 12px #0073e6;
+                    0 0 3px #ffd700,
+                    0 0 6px #ffd700,
+                    0 0 9px #ff8c00,
+                    0 0 12px #ff8c00;
+                transform: scale(1.1);
+                filter: brightness(1.3);
+            }
+            70% {
+                color: #ffa500;
+                text-shadow: 
+                    0 0 2px #ffa500,
+                    0 0 4px #ffa500,
+                    0 0 6px #ff8c00;
                 transform: scale(1.05);
+                filter: brightness(1.1);
             }
             100% {
-                color: inherit;
-                text-shadow: none;
+                color: #ff8c00;
+                text-shadow: 
+                    0 0 1px #ff8c00,
+                    0 0 2px #ff8c00;
                 transform: scale(1);
+                filter: brightness(1);
             }
         }
         
         /* カーソルエフェクト */
         .typing-cursor {
             display: inline-block;
-            width: 2px;
-            height: 1.2em;
-            background-color: #0073e6;
-            animation: blink 1s infinite;
+            width: 3px;
+            height: 1.3em;
+            background-color: #ff8c00;
+            animation: terminalBlink 1s infinite;
             margin-left: 2px;
             vertical-align: text-bottom;
+            box-shadow: 0 0 5px #ff8c00;
         }
         
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0; }
+        @keyframes terminalBlink {
+            0%, 50% { 
+                opacity: 1; 
+                box-shadow: 0 0 5px #ff8c00;
+            }
+            51%, 100% { 
+                opacity: 0; 
+                box-shadow: none;
+            }
         }
         
         #message-form {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
+        
         #message-input {
             flex: 1;
             padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
-        }
-        #message-input:focus {
-            outline: none;
-            border-color: #0073e6;
-            box-shadow: 0 0 0 3px rgba(0, 115, 230, 0.1);
-        }
-        #send-button {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #0073e6, #0056b3);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
+            border: 2px solid #ff8c00;
+            border-radius: 0;
+            font-size: 1.1em;
+            font-family: 'VT323', monospace;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #ff8c00;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        #send-button:hover {
-            background: linear-gradient(135deg, #0056b3, #003d82);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        }
-        #send-button:active {
-            transform: translateY(0);
-        }
-        #connection-status {
-            padding: 12px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            text-align: center;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .connected {
-            background: linear-gradient(135deg, #4caf50, #45a049);
-            color: white;
-        }
-        .disconnected {
-            background: linear-gradient(135deg, #f44336, #d32f2f);
-            color: white;
+            box-shadow: 
+                inset 0 0 10px rgba(255, 140, 0, 0.2),
+                0 0 10px rgba(255, 140, 0, 0.3);
         }
         
-        h1 {
-            text-align: center;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            margin-bottom: 30px;
+        #message-input:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 
+                inset 0 0 15px rgba(255, 215, 0, 0.3),
+                0 0 15px rgba(255, 215, 0, 0.5);
+            color: #ffd700;
+        }
+        
+        #message-input::placeholder {
+            color: rgba(255, 140, 0, 0.6);
+        }
+        
+        #send-button {
+            padding: 12px 24px;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: #ff8c00;
+            border: 2px solid #ff8c00;
+            border-radius: 0;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-family: 'VT323', monospace;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 
+                inset 0 0 10px rgba(255, 140, 0, 0.2),
+                0 0 10px rgba(255, 140, 0, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        #send-button:hover {
+            background-color: rgba(255, 140, 0, 0.2);
+            border-color: #ffd700;
+            color: #ffd700;
+            box-shadow: 
+                inset 0 0 15px rgba(255, 215, 0, 0.3),
+                0 0 15px rgba(255, 215, 0, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        #send-button:active {
+            transform: translateY(0);
+            box-shadow: 
+                inset 0 0 20px rgba(255, 215, 0, 0.4),
+                0 0 10px rgba(255, 215, 0, 0.3);
         }
         
         /* スクロールバーのスタイリング */
         #chat-container::-webkit-scrollbar {
-            width: 8px;
+            width: 12px;
         }
+        
         #chat-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #ff8c00;
         }
+        
         #chat-container::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
+            background: linear-gradient(180deg, #ff8c00, #ffa500);
+            border: 1px solid #ff8c00;
+            box-shadow: inset 0 0 5px rgba(255, 140, 0, 0.5);
         }
+        
         #chat-container::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
+            background: linear-gradient(180deg, #ffa500, #ffd700);
+            box-shadow: inset 0 0 8px rgba(255, 215, 0, 0.6);
+        }
+        
+        /* タイムスタンプのスタイル */
+        small {
+            color: rgba(255, 140, 0, 0.7);
+            font-size: 0.9em;
+        }
+        
+        /* ユーザー名のスタイル */
+        strong {
+            color: #ffd700;
+            text-shadow: 0 0 5px #ffd700;
+        }
+        
+        /* システムメッセージのスタイル */
+        em {
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+        }
+        
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            #chat-container {
+                height: 300px;
+                font-size: 1em;
+            }
+            
+            #message-input, #send-button {
+                font-size: 1em;
+                padding: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>SSE Chat Application</h1>
+    <h1>SSE CHAT TERMINAL</h1>
     
     <div id="connection-status" class="disconnected">
-        Disconnected
+        SYSTEM: DISCONNECTED
     </div>
     
     <div id="chat-container"></div>
     
     <form id="message-form">
-        <input type="text" id="message-input" placeholder="Type your message..." required>
-        <button type="submit" id="send-button">Send</button>
+        <input type="text" id="message-input" placeholder="ENTER MESSAGE..." required>
+        <button type="submit" id="send-button">SEND</button>
     </form>
 
     <script src="chat.js"></script>
